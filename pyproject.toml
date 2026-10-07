@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "track-distance"
+version = "0.1.0"
+description = "Distance between rail stations along the track, not as the crow flies."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Dillon Rose", email = "dillonrose0@icloud.com" }]
+keywords = ["rail", "railway", "distance", "routing", "gis", "network-rail", "shortest-path"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = ["geopandas>=0.14", "networkx>=3.0", "numpy>=1.26", "pandas>=2.0", "scipy>=1.11", "shapely>=2.0"]
+
+[project.optional-dependencies]
+# Interactive HTML maps go through geopandas .explore(), which needs folium.
+map = ["folium>=0.15", "mapclassify>=2.6", "matplotlib>=3.8"]
+dev = ["track-distance[map]", "pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6", "mypy>=1.11", "pandas-stubs", "types-networkx", "scipy-stubs", "types-shapely", "types-geopandas"]
+
+[project.scripts]
+track-distance = "track_distance.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/rosedillon/track-distance"
+Issues = "https://github.com/rosedillon/track-distance/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 99
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+
+[tool.ruff.lint.pycodestyle]
+# PEP 8: code may run to 99 when agreed, but comments and docstrings
+# still wrap at 72.
+max-doc-length = 72
+
+[tool.mypy]
+strict = true

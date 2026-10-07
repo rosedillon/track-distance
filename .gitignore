@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.Python
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Track models are large and licensed; fetch your own.
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.html
+
+.DS_Store
