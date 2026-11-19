@@ -176,3 +176,19 @@ class TestStationSource:
         assert "aaa" in calculator
         assert "ZZZ" not in calculator
         assert {"AAA", "BBB", "CCC", "DDD"} <= calculator.stations
+
+
+class TestPlausible:
+    def test_sensible_route_is_kept(self, calculator: TrackDistanceCalculator) -> None:
+        assert calculator.calculate_distance("AAA", "CCC", plausible=True) == pytest.approx(2.0)
+
+    def test_impossible_route_uses_straight_line(
+        self, calculator: TrackDistanceCalculator
+    ) -> None:
+        # AAA and CCC are 2 km apart, so a 10 km route is a gap.
+        metres = calculator._plausible_metres("AAA", "CCC", 10_000.0)
+        assert metres == pytest.approx(2000.0 * 1.2, rel=1e-3)
+
+    def test_too_short_route_uses_straight_line(self, calculator: TrackDistanceCalculator) -> None:
+        metres = calculator._plausible_metres("AAA", "CCC", 500.0)
+        assert metres == pytest.approx(2000.0 * 1.2, rel=1e-3)

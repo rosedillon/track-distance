@@ -46,6 +46,23 @@ logger = logging.getLogger(__name__)
 # connected to anything.
 DEFAULT_SNAP_CANDIDATES = 12
 
+# If none of those candidates is on the main network, the nearest node
+# that is gets used, provided it is this close. Spondon sits beside a
+# 26-node fragment with its nearest main-network node 710 m away; the
+# Isle of Wight's stations, on a separate network, are kilometres off
+# and keep their own node.
+SNAP_MAX_METRES = 1000.0
+
+# A route shorter than 0.9 times the straight line, or longer than 3
+# times it, is a gap or a bad snap in the track model rather than a real
+# route. With ``plausible=True`` such a distance is replaced by the
+# straight line times CIRCUITY, the median ratio of route to straight
+# line across about 9,900 station pairs in the Network Rail model.
+PLAUSIBLE_LOW = 0.9
+PLAUSIBLE_HIGH = 3.0
+PLAUSIBLE_MIN_METRES = 800.0
+CIRCUITY = 1.2
+
 DEFAULT_INPUT_CRS = "EPSG:4326"
 DEFAULT_WORKING_CRS = "EPSG:27700"
 
@@ -209,9 +226,10 @@ class TrackDistanceCalculator:
         routes, which looks downstream like a station nobody travels to.
 
         Candidates are therefore taken in order of distance and the
-        first one on the largest connected component wins. Only if none
-        of them is on it does the station take the nearest node
-        regardless.
+        first one on the largest connected component wins. If none of
+        them is on it, the nearest main-network node is used when it is
+        within :data:`SNAP_MAX_METRES`, and otherwise the station keeps
+        its nearest node.
         """
         self._station_nodes: dict[str, tuple[float, float]] = {}
         if not self.station_locations or self._kdtree is None:
@@ -228,9 +246,13 @@ class TrackDistanceCalculator:
         # atleast_2d would turn that into a single row of n, so reshape
         # explicitly.
         indices = np.asarray(indices).reshape(len(coordinates), -1)
+        main_nodes = [node for node in self._nodes if node in main_component]
+        main_tree = KDTree(np.array(main_nodes)) if main_nodes else None
 
         rerouted = []
-        for code, candidate_indices in zip(self.station_locations, indices, strict=True):
+        for code, xy, candidate_indices in zip(
+            self.station_locations, coordinates, indices, strict=True
+        ):
             nearest = self._nodes[candidate_indices[0]]
             chosen = next(
                 (
@@ -240,6 +262,10 @@ class TrackDistanceCalculator:
                 ),
                 nearest,
             )
+            if chosen not in main_component and main_tree is not None:
+                metres, index = main_tree.query(xy)
+                if metres <= SNAP_MAX_METRES:
+                    chosen = main_nodes[int(index)]
             if chosen != nearest:
                 rerouted.append(code)
             self._station_nodes[code] = chosen
@@ -294,26 +320,72 @@ class TrackDistanceCalculator:
         self._cache.setdefault((destination, origin), result)
         return result
 
-    def calculate_distance(self, origin: str, destination: str, unit: Unit | str = "km") -> float:
-        """Distance along the track between two stations."""
+    def _plausible_metres(self, origin: str, destination: str, metres: float) -> float:
+        """``metres``, or a straight-line estimate if it is impossible.
+
+        Track models have missing links and stations that snap onto the
+        wrong stretch of line. In the Network Rail model, Headbolt Lane
+        to Kirkby is a mile apart and routes at 39.5 miles because the
+        2023 link through Kirkby is not joined up. See
+        :data:`PLAUSIBLE_LOW` for the rule.
+        """
+        a = self.station_locations.get(origin)
+        b = self.station_locations.get(destination)
+        if a is None or b is None:
+            return metres
+        crow = float(np.hypot(a[0] - b[0], a[1] - b[1]))
+        if crow < PLAUSIBLE_MIN_METRES:
+            return metres
+        if PLAUSIBLE_LOW * crow <= metres <= PLAUSIBLE_HIGH * crow:
+            return metres
+        logger.debug(
+            "Implausible route %s-%s: %.1f km against %.1f km straight; using %.1f km",
+            origin,
+            destination,
+            metres / 1000,
+            crow / 1000,
+            crow * CIRCUITY / 1000,
+        )
+        return crow * CIRCUITY
+
+    def calculate_distance(
+        self,
+        origin: str,
+        destination: str,
+        unit: Unit | str = "km",
+        *,
+        plausible: bool = False,
+    ) -> float:
+        """Distance along the track between two stations.
+
+        With ``plausible=True``, a route that cannot be right (see
+        :data:`PLAUSIBLE_LOW`) is replaced by a straight-line estimate.
+        """
         origin = str(origin).strip().upper()
         destination = str(destination).strip().upper()
         metres, _, _ = self._route(origin, destination)
+        if plausible:
+            metres = self._plausible_metres(origin, destination, metres)
         return convert_metres(metres, unit)
 
-    def distances_from(self, origin: str, unit: Unit | str = "km") -> dict[str, float]:
+    def distances_from(
+        self, origin: str, unit: Unit | str = "km", *, plausible: bool = False
+    ) -> dict[str, float]:
         """Distance from one station to every station reachable from it.
 
         One shortest-path tree, which is far cheaper than calling
         :meth:`calculate_distance` once per destination. Unreachable
-        stations are omitted rather than given an infinite distance.
+        stations are left out. ``plausible`` works as it does there.
         """
+        origin = str(origin).strip().upper()
         start = self._node_index[self._node_for(origin)]
         lengths = dijkstra(self._matrix, directed=False, indices=start)
         distances = {}
         for code, node in self._station_nodes.items():
             metres = float(lengths[self._node_index[node]])
             if np.isfinite(metres):
+                if plausible and code != origin:
+                    metres = self._plausible_metres(origin, code, metres)
                 distances[code] = convert_metres(metres, unit)
         return distances
 

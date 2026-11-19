@@ -41,7 +41,9 @@ def _cmd_distance(args: argparse.Namespace) -> int:
     total = 0.0
     rows = []
     for origin, destination in legs:
-        distance = calculator.calculate_distance(origin, destination, args.unit)
+        distance = calculator.calculate_distance(
+            origin, destination, args.unit, plausible=args.plausible
+        )
         total += distance
         rows.append({"from": origin.upper(), "to": destination.upper(), "distance": distance})
 
@@ -69,7 +71,7 @@ def _cmd_distance(args: argparse.Namespace) -> int:
 
 def _cmd_from(args: argparse.Namespace) -> int:
     calculator = _build(args)
-    distances = calculator.distances_from(args.origin, args.unit)
+    distances = calculator.distances_from(args.origin, args.unit, plausible=args.plausible)
     distances.pop(args.origin.strip().upper(), None)
     ranked = sorted(distances.items(), key=lambda item: item[1])
     if args.limit:
@@ -107,6 +109,11 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("-u", "--unit", choices=UNITS, default="km", help="output unit")
     parser.add_argument("--json", action="store_true", help="emit JSON")
+    parser.add_argument(
+        "--plausible",
+        action="store_true",
+        help="replace impossible routes (gaps in the track model) with a straight-line estimate",
+    )
     parser.add_argument("--code-column", default="crsCode", help="station code column")
     parser.add_argument("--lat-column", default="lat", help="latitude column")
     parser.add_argument("--lon-column", default="long", help="longitude column")

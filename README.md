@@ -1,5 +1,10 @@
 # track-distance
 
+[![PyPI](https://img.shields.io/pypi/v/track-distance)](https://pypi.org/project/track-distance/)
+[![Python](https://img.shields.io/pypi/pyversions/track-distance)](https://pypi.org/project/track-distance/)
+[![CI](https://github.com/rosedillon/track-distance/actions/workflows/ci.yml/badge.svg)](https://github.com/rosedillon/track-distance/actions/workflows/ci.yml)
+[![Licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue)](https://github.com/rosedillon/track-distance/blob/main/LICENSE)
+
 Measure how far apart two railway stations are along the track, rather
 than as the crow flies.
 
@@ -33,10 +38,10 @@ Compared with published rail mileages:
 Python 3.11 or later.
 
 ```sh
-pip install git+https://github.com/rosedillon/track-distance
+pip install track-distance
 
 # with interactive HTML maps
-pip install 'track-distance[map] @ git+https://github.com/rosedillon/track-distance'
+pip install 'track-distance[map]'
 ```
 
 or, from a clone, `pip install .` (or `pip install '.[map]'`). It
@@ -134,19 +139,43 @@ downstream like a station nobody travels to.
 
 So the candidate nodes near each station are taken in order of
 distance, and the first one on the largest connected part of the
-network is used. Only if none of them is on it does the station take
-the nearest node regardless. On the Network Rail model this moves 40
-stations off fragments:
+network is used. If none of them is on it, the station goes to the
+nearest node on the main network as long as that is within 1 km.
+Spondon needs this: it sits beside a 26-node fragment, and its nearest
+main-network node is 710 m away. Stations on a genuinely separate
+network, such as the Isle of Wight's, are kilometres from the main one
+and keep their own nearest node. On the September 2026 Network Rail
+model this moves 39 stations off fragments:
 
 ```
-INFO Snapped 40 station(s) past a disconnected track fragment onto the main network:
-ALF, BFE, BFF, BKJ, BOR, BOW, CEA, CFL, CGW, CLK, CUW, CYK, DMY, DUD, DWD, EDL, ENL,
-ERI, FMT, FYS, HDW, HOL, HPE, HTW, KEI, KWL, MIR, NAR, NWH, PFY, PNF, PNM, PRT, SDY,
-SHH, SIN, STK, TUR, WDS, WTL
+INFO Snapped 39 station(s) past a disconnected track fragment onto the main network:
+ALF, BFE, BFF, BOR, BOW, CEA, CFL, CGW, CLK, CUW, CYK, DUD, DWD, EDL, ENL, ERI, FMT,
+FYS, HDW, HOL, HPE, HTW, KEI, KWL, MIR, NAR, NWH, PFY, PNF, PNM, PRT, SDY, SHH, SIN,
+SPO, STK, TUR, WDS, WTL
 ```
 
 Run with `-v` to see the list. If yours is much longer, the track model
 probably has connectivity problems worth looking into.
+
+### Routes that cannot be right
+
+Some gaps are in the main network itself. Headbolt Lane and Kirkby are
+a mile apart, but the 2023 link between them is not joined up in the
+model, so the route goes the long way round:
+
+```console
+$ track-distance distance HBL KIR -t tracks.shp -s stations.csv -u miles
+HBL -> KIR      39.84 miles
+$ track-distance distance HBL KIR -t tracks.shp -s stations.csv -u miles --plausible
+HBL -> KIR       1.04 miles
+```
+
+With `--plausible` (or `plausible=True` in Python), a route shorter than
+0.9 times the straight line or longer than 3 times it is treated as a
+gap in the model. The straight line times 1.2 is used instead, 1.2
+being the median ratio of route to straight line across about 9,900
+station pairs. Stations closer than 800 m are left alone. It is off by
+default, so you see what the track model says unless you ask.
 
 ## Totals on shared track
 
@@ -200,8 +229,8 @@ one shortest-path search for all of them instead of one per pair.
 | Name | |
 |---|---|
 | `TrackDistanceCalculator(track_shapefile, stations)` | build the graph and attach the stations |
-| `.calculate_distance(origin, destination, unit="km")` | one distance |
-| `.distances_from(origin, unit="km")` | every reachable station |
+| `.calculate_distance(origin, destination, unit="km", plausible=False)` | one distance |
+| `.distances_from(origin, unit="km", plausible=False)` | every reachable station |
 | `.route_edges(origin, destination)` | the track segments a route uses |
 | `.route_geometry(origin, destination)` | the route's line geometries |
 | `.route_frame(origin, destination)` | the route as a GeoDataFrame |
@@ -229,6 +258,6 @@ committed.
 
 ## Licence
 
-GPL-3.0. See [LICENSE](LICENSE).
+GPL-3.0. See [LICENSE](https://github.com/rosedillon/track-distance/blob/main/LICENSE).
 
 Not affiliated with or endorsed by Network Rail.
