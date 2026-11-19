@@ -4,23 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "track-distance"
-version = "0.2.0"
-description = "Distance between rail stations along the track, not as the crow flies."
+version = "0.2.1"
+description = "Measure distances between UK railway stations along the track (Network Rail track model), not as the crow flies."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 authors = [{ name = "Dillon Rose", email = "dillonrose0@icloud.com" }]
-keywords = ["rail", "railway", "distance", "routing", "gis", "network-rail", "shortest-path"]
+keywords = ["distance", "rail-distance", "track-distance", "network-rail", "railway", "uk-rail", "gis", "shortest-path", "routing", "geopandas", "great-britain"]
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = ["geopandas>=0.14", "networkx>=3.0", "numpy>=1.26", "pandas>=2.0", "scipy>=1.11", "shapely>=2.0"]
 
@@ -34,7 +39,10 @@ track-distance = "track_distance.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/rosedillon/track-distance"
+Documentation = "https://github.com/rosedillon/track-distance#readme"
+Source = "https://github.com/rosedillon/track-distance"
 Issues = "https://github.com/rosedillon/track-distance/issues"
+Changelog = "https://github.com/rosedillon/track-distance/releases"
 
 [tool.setuptools.packages.find]
 where = ["src"]
